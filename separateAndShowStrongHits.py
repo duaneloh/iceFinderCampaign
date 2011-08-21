@@ -1,14 +1,5 @@
 #!/usr/bin/env python
 
-# Usage:
-# In this directory, type:
-#    ./viewRun.py -rxxxx
-# For details, type 
-#	 ./viewRun.py --help
-# where rxxxx is the run number of hits and nonhits found using the hitfinder executable. 
-# By default, this script looks into the h5 files that are in the appropriate rxxxx directory
-#
-
 import numpy as N
 import h5py as H
 import matplotlib
