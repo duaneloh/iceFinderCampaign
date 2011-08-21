@@ -1,0 +1,70 @@
+Here's an example of how to use these scripts for run 0145. There are two steps to this process:
+1. Find an integrated intensities cutoff that can drastically separate the weak (non-interesting) hits from the strong (interesting) hits.
+	a. split the run into weak and strong hits by this cutoff, 
+	b. save the ang_avg.h5 files of the strong hits into an "loading" folder which you will then inspect.
+2. Sort the angular averages in step 1b to isolate the majority of the anomalous patterns, then manually inspect these anomalous patterns.
+
+
+##########################################################
+Here are the python scripts you need to accomplish this two-step sorting.
+
+1. separateAndShowStrongHits.py . The end product would be to copy over strong-hit files (-c flag) into the output directory for the second round of inspection.
+E.g.: 
+	
+./separateAndShowStrongHits.py -h 	
+	get help on flags
+
+./separateAndShowStrongHits.py -r0145	
+	-checks if sorted ang_avg files present, 
+		if not sort ang_avg files found in canonical run 0145 directory, 
+		then records ordered file list in output dir (default output_rxxxx directory)
+	-let user define cutoff for strong-vs-weak hits (from plot), 
+	-stores tofile names of weak and strong hits separately as lists in output dir
+
+./separateAndShowStrongHits.py -r0145 -c
+	same as above, also copy ang_avg.h5 files into output directory
+	Note that this copy overwrites existing copies in output directory
+
+./separateAndShowStrongHits.py -r0145 -c -W 1 
+	same as above, 
+	also calculates and plots average 2D pattern and ang_avg of all weak hits (could take a while)
+
+./separateAndShowStrongHits.py -r0145 -c -W 1 -S 1
+	same as above, 
+	also calculates and plots average 2D pattern and ang_avg of all strong hits (could take a while)
+
+
+
+2. finerInspection.py . User classifies strong hits (ang_avg.h5) copied in output_rxxxx directory into various types. The classification moves tagged types into subdirectories. Type0 stays in main output_rxxxx, while types1-4 are moved to output_rxxxx/anomaly/types1-4. Classification is complete when the membership of hit files within output_rxxxx directory stops changing.  
+	
+E.g.:	
+
+./finerInspection.py -h
+	get help on flags
+
+./finerInspection.py -r0145  
+	You'll be presented with a sorted ang_avg spectra, 
+		where the ang_avg of each frame is shown as a row in the spectra 
+		from which you must determine a cutoff data (or row) for inspection.
+		The colorbar of this spectra can be manipulated to set the maximum and 
+			minimum color contrasts.
+		You can press 'p' to save this spectra. 
+		Program prompts you for this cutoff row when you closing the window 
+			for this spectra. 
+	All frames begin as type0.
+	The frames beyond your cutoff should be manually examined and tagged.
+	Each frame's 2D diffraction pattern and ang_avg are presented.
+		Pressing keystrokes 1-4 to tag it as types1-4,
+		and file is moved to tagged subfolder: /output_rxxxx/anomaly/type1-4), 
+		Not pressing any key implies the frame remains type0.
+		Close the image (red button on top left of image) to advance to next frame. 
+	The round terminates when all frames beyond your cutoff have been examined. 
+	You can terminate this process anytime (Ctrl+\) and return to it later with a reduced
+		spectra (you'll be asked for a with a new cutoff). 
+	The process terminates when you are satisified that your initial spectra 
+		contains only a single scatterer type.
+ 
+
+Good luck!
+
+
