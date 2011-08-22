@@ -244,7 +244,7 @@ waveLengths={}
 for i in range(numTypes):
 	waveLengths[i] = []
 	
-for fname in anomalies[10:]:
+for fname in anomalies:
 	storeFlag=0
 	diffractionName = source_dir+runtag+"/"+re.sub("-angavg",'',fname)
 	f = H.File(diffractionName, 'r')

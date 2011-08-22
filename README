@@ -4,6 +4,8 @@ Here's an example of how to use these scripts for run 0145. There are two steps 
 	b. save the ang_avg.h5 files of the strong hits into an "loading" folder which you will then inspect.
 2. Sort the angular averages in step 1b to isolate the majority of the anomalous patterns, then manually inspect these anomalous patterns.
 
+Bonus step, step 3(for review):
+In this step, you could run ./viewRun -rxxxx to review the types that you have classified into the various categories.
 
 ##########################################################
 Here are the python scripts you need to accomplish this two-step sorting.
