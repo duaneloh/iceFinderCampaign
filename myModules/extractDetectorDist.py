@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 import numpy as N
 import h5py as H
 import matplotlib
@@ -21,6 +19,8 @@ expDescriptors = {}
 runDescriptor="RUN"
 detectorDistDescriptor="SAMPLE-DETECTOR Z (mm)"
 
+iceHInvAngQ={'100':1.611, '002':1.717, '101':1.848, '102':2.353, '110':2.793, '103':3.095, '200':3.222, '112':3.272, '201':3.324}
+
 for i in values:
 	temp_dict = {}
 	for j,k in zip(tags, i):
@@ -31,13 +31,12 @@ for i in values:
 def get_detector_dist_in_meters(run_tag):
 	return (1.E-3)*float(expDescriptors[run_tag].get(detectorDistDescriptor))
 
-def get_invAngsQ_from_pix(run_tag, pixPos):
+def get_invAngsQ_from_pix(run_tag, pixPos, wavelengthInAngs=nominalWavelengthInAngs):
 	detDist=get_detector_dist_in_meters(run_tag)
 	ang = N.arctan(pixPos*pixSize/detDist)
-	return (2*N.pi/nominalWavelengthInAngs)*2.*N.sin(0.5*ang)
+	return (2*N.pi/wavelengthInAngs)*2.*N.sin(0.5*ang)
 
-def get_pix_from_invAngsQ(run_tag, invAngsQ):
+def get_pix_from_invAngsQ(run_tag, invAngsQ, wavelengthInAngs=nominalWavelengthInAngs):
 	detDist=get_detector_dist_in_meters(run_tag)
-	temp = 2*N.arcsin(0.5*invAngsQ*nominalWavelengthInAngs/(2*N.pi))
+	temp = 2*N.arcsin(0.5*invAngsQ*wavelengthInAngs/(2*N.pi))
 	return detDist*N.tan(temp)/pixSize
-	

@@ -35,7 +35,7 @@ parser.add_option("-o", "--outputdir", action="store", type="string", dest="outp
 # ensure you have the necessary read/write permissions.
 ########################################################
 source_dir = "/reg/d/psdm/cxi/cxi25410/scratch/cleaned_hdf5/"
-ang_avg_dir = "/reg/d/psdm/cxi/cxi25410/scratch/cleaned_hdf5/ice_runs/"
+ang_avg_dir = "/reg/d/psdm/cxi/cxi25410/scratch/cleaned_hdf5/"
 runtag = "r%s"%(options.runNumber)
 write_dir = options.outputDir + '_' + runtag + '/'
 h5files= []
