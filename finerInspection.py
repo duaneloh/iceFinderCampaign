@@ -50,7 +50,7 @@ angAvgLen = len(arr[0])
 
 #Round 1: Sort by total intensities
 scoreKeeper = N.zeros(numData)
-scoreKeeper = [N.sum(i) for i in masterArr]
+scoreKeeper = [N.sum(N.abs(i)) for i in masterArr]
 ordering = N.argsort(scoreKeeper)
 sorted_arr = N.zeros((numData, angAvgLen))
 files_round1 = []

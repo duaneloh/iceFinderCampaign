@@ -63,7 +63,7 @@ else:
 	for i in range(numFiles):
 		fullFilePath = ang_avg_dir+runtag+"/"+h5files[i]
 		f = H.File(fullFilePath, 'r')
-		integratedIntens[i] = N.array(f['/data/data']).sum()
+		integratedIntens[i] = N.abs(N.array(f['/data/data'])).sum()
 		f.close()
 	ordering = integratedIntens.argsort()
 	orderedH5Files = N.array(h5files)[ordering]
