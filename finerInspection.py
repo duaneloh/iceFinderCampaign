@@ -28,7 +28,7 @@ else:
 	inspectDirectory=options.inspectDirectory
 originaldir=os.getcwd()
 os.chdir(inspectDirectory)
-files = G.glob("*angavg.h5")
+files = G.glob("LCLS*angavg.h5")
 
 arr = []
 print "reading ang_avgs.."
@@ -106,7 +106,7 @@ class img_class (object):
 		if event.key in [str(i) for i in range(1,numTypes+1)]:
 			storeFlag = int(event.key)
 			recordtag = write_anomaly_dir_types[storeFlag] + runtag + "_" + event.key + ".txt"
-			print "recording filename in " + recordtag
+			print "recorded filename in " + recordtag
 			storeFlag = int(event.key)
 			if(not os.path.exists(write_anomaly_dir_types[storeFlag])):
 				os.mkdir(write_anomaly_dir_types[storeFlag])
@@ -115,11 +115,11 @@ class img_class (object):
 			f.write(self.filename+"\n")
 			f.close()
 			pngtag = write_anomaly_dir_types[storeFlag] + "%s.png" % (self.filename)
-			print "saving image as " + pngtag
+			print "saved image as " + pngtag
 			P.savefig(pngtag)
 		if event.key == 'p':
 			pngtag = write_anomaly_dir_types[storeFlag] + "%s.png" % (self.filename)
-			print "saving image as " + pngtag
+			print "saved image as " + pngtag
 			P.savefig(pngtag)
 		if event.key == 'r':
 			colmin = self.inarr.min()
@@ -178,7 +178,7 @@ class img_class (object):
 		global colmin
 		localColMax=self.inarr.max()
 		localColMin=self.inarr.min()
-		aspectratio = (self.inarr.shape[1])/(self.inarr.shape[0])
+		aspectratio = (self.inarr.shape[1])/(float(self.inarr.shape[0]))
 		fig = P.figure(num=None, figsize=(8.5, 5), dpi=100, facecolor='w', edgecolor='k')
 		cid1 = fig.canvas.mpl_connect('key_press_event', self.on_keypress) 
 		cid2 = fig.canvas.mpl_connect('button_press_event', self.on_click)
@@ -194,6 +194,7 @@ print "Right-click on colorbar to set maximum scale."
 print "Left-click on colorbar to set minimum scale."
 print "Center-click on colorbar (or press 'r') to reset color scale."
 print "Interactive controls for zooming at the bottom of figure screen (zooming..etc)."
+print "Press 'p' to save PNG."
 print "Hit Ctl-\ or close all windows (Alt-F4) to terminate viewing program."
 
 currImg = img_class(sorted_arr2,None, runtag+"_spectrum")
@@ -238,7 +239,7 @@ print "Right-click on colorbar to set maximum scale."
 print "Left-click on colorbar to set minimum scale."
 print "Center-click on colorbar (or press 'r') to reset color scale."
 print "Interactive controls for zooming at the bottom of figure screen (zooming..etc)."
-print "Press any single digit from '1-3' to save the H5 filename of current image to the appropriate file (e.g. r0079/r0079_1.txt), and also the taggedPNG ."
+print "Press any single digit from 1-"+ str(numTypes)+ " to save the H5 filename of current image to the appropriate file (e.g. r0079/r0079_1.txt), and also the taggedPNG ."
 print "Hit Ctl-\ or close all windows (Alt-F4) to terminate viewing program."
 waveLengths={}
 for i in range(numTypes):
