@@ -105,15 +105,14 @@ class img_class (object):
 		global storeFlag
 		if event.key in [str(i) for i in range(1,numTypes+1)]:
 			storeFlag = int(event.key)
-			recordtag = write_anomaly_dir_types[storeFlag] + runtag + "_" + event.key + ".txt"
-			print "recorded filename in " + recordtag
+			#recordtag = write_anomaly_dir_types[storeFlag] + runtag + "_" + event.key + ".txt"
+			#print "recorded filename in " + recordtag
 			storeFlag = int(event.key)
 			if(not os.path.exists(write_anomaly_dir_types[storeFlag])):
 				os.mkdir(write_anomaly_dir_types[storeFlag])
-			f = open(recordtag, 'a+')
-			#Could check here if it already has been recorded. Ouch!
-			f.write(self.filename+"\n")
-			f.close()
+			#f = open(recordtag, 'a+')
+			#f.write(self.filename+"\n")
+			#f.close()
 			pngtag = write_anomaly_dir_types[storeFlag] + "%s.png" % (self.filename)
 			print "saved image as " + pngtag
 			P.savefig(pngtag)
@@ -239,7 +238,7 @@ print "Right-click on colorbar to set maximum scale."
 print "Left-click on colorbar to set minimum scale."
 print "Center-click on colorbar (or press 'r') to reset color scale."
 print "Interactive controls for zooming at the bottom of figure screen (zooming..etc)."
-print "Press any single digit from 1-"+ str(numTypes)+ " to save the H5 filename of current image to the appropriate file (e.g. r0079/r0079_1.txt), and also the taggedPNG ."
+print "Press any single digit from 1-"+ str(numTypes)+ " to save current image to a unique-event-tagged PNG (overwrites old PNGs)."
 print "Hit Ctl-\ or close all windows (Alt-F4) to terminate viewing program."
 waveLengths={}
 for i in range(numTypes):
