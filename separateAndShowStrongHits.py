@@ -36,6 +36,8 @@ canonicalOrderedIntensInHitsFN = write_dir + runtag + "_orderedIntens.txt"
 if not os.path.exists(write_dir):
 	os.mkdir(write_dir)
 
+print "detector at distance: %lf" % eDD.get_detector_dist_in_meters(runtag)
+
 if(os.path.exists(canonicalOrderedHitsFN) and os.path.exists(canonicalOrderedIntensInHitsFN)):
 	print "Found sorted filenames and intens lists"
 	f = open(canonicalOrderedHitsFN, 'r')
@@ -192,7 +194,7 @@ if (options.weakHitsTreatment == 1):
 			d = N.array(f['/data/data'])
 			waveLengths.append(f['LCLS']['photon_wavelength_A'][0])
 			if arr == []:
-				arr = d.copy()
+				arr = d.astype('float64')
 			arr += d
 			f.close()
 			angAvgName = ang_avg_dir + runtag + '/' + fname
@@ -229,7 +231,7 @@ if(options.strongHitsTreatment == 1):
 			d = N.array(f['/data/data'])
 			waveLengths.append(f['LCLS']['photon_wavelength_A'][0])
 			if arr == []: 
-				arr = d.copy()
+				arr = d.astype('float64')
 			arr += d
 			f.close()
 			angAvgName = ang_avg_dir + runtag + '/' + fname
