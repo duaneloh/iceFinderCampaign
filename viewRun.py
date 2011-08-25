@@ -38,7 +38,7 @@ files = []
 storeFlag = 0
 for cDir in write_anomaly_dir_types:
 	os.chdir(cDir)
-	files.append(G.glob("*angavg.h5"))
+	files.append(G.glob("LCLS*angavg.h5"))
 	curr_dir = os.getcwd()
 	write_anomaly_dir_types[storeFlag] = curr_dir
 	os.chdir(originaldir)
