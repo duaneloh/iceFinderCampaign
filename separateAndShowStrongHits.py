@@ -136,7 +136,7 @@ class img_class (object):
 		cid2 = fig.canvas.mpl_connect('button_press_event', self.on_click)
 		canvas = fig.add_subplot(121)
 		canvas.set_title(self.filename)
-		self.axes = P.imshow(self.inarr, vmax = colmax, vmin = colmin)
+		self.axes = P.imshow(self.inarr, origin='lower', vmax = colmax, vmin = colmin)
 		self.colbar = P.colorbar(self.axes, pad=0.01)
 		self.orglims = self.axes.get_clim()
 		canvas = fig.add_subplot(122)

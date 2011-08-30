@@ -40,3 +40,7 @@ def get_pix_from_invAngsQ(run_tag, invAngsQ, wavelengthInAngs=nominalWavelengthI
 	detDist=get_detector_dist_in_meters(run_tag)
 	temp = 2*N.arcsin(0.5*invAngsQ*wavelengthInAngs/(2*N.pi))
 	return detDist*N.tan(temp)/pixSize
+
+def get_pix_from_invAngsQ_and_detectorDist(run_tag, invAngsQ, detDist, wavelengthInAngs=nominalWavelengthInAngs):
+	temp = 2*N.arcsin(0.5*invAngsQ*wavelengthInAngs/(2*N.pi))
+	return detDist*N.tan(temp)/pixSize

@@ -11,7 +11,7 @@ from optparse import OptionParser
 
 parser = OptionParser()
 parser.add_option("-r", "--run", action="store", type="string", dest="runNumber", help="run number you wish to view", metavar="rxxxx")
-parser.add_option("-i", "--inspectDir", action="store", type="string", dest="inspectDirectory", help="data directory with the *angavg.h5 files you wish to inspect (defaults to output_rxxxx)", metavar="inputDir", default='')
+parser.add_option("-i", "--inspectOnly", action="store_true", dest="inspectOnly", help="inspect output directory", default=False)
 parser.add_option("-o", "--outputDir", action="store", type="string", dest="outputDir", help="output directory will be appended by run number (default: output_rxxxx); separate types will be stored in output_rxxxx/anomaly/type[1-3]", default="output")
 parser.add_option("-M", "--maxIntens", action="store", type="int", dest="maxIntens", help="doesn't plot intensities above this value", default=10000)
 (options, args) = parser.parse_args()
@@ -20,14 +20,9 @@ source_dir = "/reg/d/psdm/cxi/cxi25410/scratch/cleaned_hdf5/"
 ang_avg_dir = "/reg/d/psdm/cxi/cxi25410/scratch/cleaned_hdf5/"
 runtag = "r%s"%(options.runNumber)
 write_dir = options.outputDir + '_' + runtag + '/' 
-write_anomaly_dir = write_dir + 'anomaly/'
-inspectDirectory=""
-if (options.inspectDirectory==''):
-	inspectDirectory=write_dir
-else:
-	inspectDirectory=options.inspectDirectory
+write_anomaly_dir = write_dir
 originaldir=os.getcwd()
-os.chdir(inspectDirectory)
+os.chdir(write_dir)
 files = G.glob("LCLS*angavg.h5")
 
 arr = []
@@ -77,6 +72,7 @@ ordering = N.argsort(scoreKeeper)
 sorted_arr2 = sorted_arr[ordering]
 round2FileNames = N.array([round1FileNames[i] for i in ordering])
 
+#Global parameters
 colmax = options.maxIntens
 colmin = 0
 storeFlag = 0
@@ -88,38 +84,66 @@ for i in range(numTypes):
 # Imaging class copied from Ingrid Ofte's pyana_misc code
 ########################################################
 class img_class (object):
-	def __init__(self, inarr, inangavg , filename, meanWaveLengthInAngs=eDD.nominalWavelengthInAngs):
+	def __init__(self, inarr, inangavg , filename, meanWaveLengthInAngs=eDD.nominalWavelengthInAngs, detectorDistance=eDD.get_detector_dist_in_meters(runtag)):
 		self.inarr = inarr*(inarr>0)
 		self.filename = filename
 		self.inangavg = inangavg
+		self.wavelength = meanWaveLengthInAngs
+		self.detectorDistance = detectorDistance
 		self.HIceQ ={}
-		for i,j in eDD.iceHInvAngQ.iteritems():
-			self.HIceQ[i] = eDD.get_pix_from_invAngsQ(runtag,j, meanWaveLengthInAngs)
 		global colmax
 		global colmin
 		global storeFlag
+		self.tag = 0
 
-	def on_keypress(self,event):
+	def on_keypress_for_tagging(self,event):
 		global colmax
 		global colmin
 		global storeFlag
-		if event.key in [str(i) for i in range(1,numTypes+1)]:
+		if event.key in [str(i) for i in range(numTypes+1)]:
 			storeFlag = int(event.key)
-			#recordtag = write_anomaly_dir_types[storeFlag] + runtag + "_" + event.key + ".txt"
-			#print "recorded filename in " + recordtag
-			storeFlag = int(event.key)
-			if(not os.path.exists(write_anomaly_dir_types[storeFlag])):
-				os.mkdir(write_anomaly_dir_types[storeFlag])
-			#f = open(recordtag, 'a+')
-			#f.write(self.filename+"\n")
-			#f.close()
-			pngtag = write_anomaly_dir_types[storeFlag] + "%s.png" % (self.filename)
-			print "saved image as " + pngtag
-			P.savefig(pngtag)
+			
+			if(options.inspectOnly):
+				print "Inspection only mode."
+			else:
+				if(not os.path.exists(write_anomaly_dir_types[storeFlag])):
+					os.mkdir(write_anomaly_dir_types[storeFlag])
+				pngtag = write_anomaly_dir_types[storeFlag] + "%s.png" % (self.filename)
+				if(self.tag != 0):
+					#delete previous assignment
+					pngtag = write_anomaly_dir_types[self.tag] + "%s.png" % (self.filename)
+					if os.path.isfile(pngtag):
+						os.remove(pngtag)
+						print "%s removed!" % (pngtag)
+					else:
+						print "No action taken."
+					#Save new assignment if it's store flag not type 0
+					if (storeFlag !=0):
+							pngtag = write_anomaly_dir_types[storeFlag] + "%s.png" % (self.filename)
+							P.savefig(pngtag)
+							print "%s saved." % (pngtag)
+							self.tag = storeFlag
+				else:
+					P.savefig(pngtag)
+					print "%s saved." % (pngtag)
+					self.tag = storeFlag
+		if event.key == 'r':
+			colmin = self.inarr.min()
+			colmax = ((self.inarr<options.maxIntens)*self.inarr).max()
+			P.clim(colmin, colmax)
+			P.draw()
+
+	def on_keypress_for_viewing(self,event):
+		global colmax
+		global colmin
+		global storeFlag
 		if event.key == 'p':
 			pngtag = write_anomaly_dir_types[storeFlag] + "%s.png" % (self.filename)
-			print "saved image as " + pngtag
-			P.savefig(pngtag)
+			if(options.inspectOnly):
+				print "Inspection only mode."
+			else:
+				P.savefig(pngtag)
+				print "%s saved." % (pngtag)
 		if event.key == 'r':
 			colmin = self.inarr.min()
 			colmax = ((self.inarr<options.maxIntens)*self.inarr).max()
@@ -148,20 +172,25 @@ class img_class (object):
 			P.draw()
 
 
-	def draw_img(self):
+	def draw_img_for_viewing(self):
+		if(not options.inspectOnly):
+			print "Press 'p' to save PNG."
 		global colmax
 		global colmin
 		fig = P.figure(num=None, figsize=(13.5, 5), dpi=100, facecolor='w', edgecolor='k')
-		cid1 = fig.canvas.mpl_connect('key_press_event', self.on_keypress)
+		cid1 = fig.canvas.mpl_connect('key_press_event', self.on_keypress_for_viewing)
 		cid2 = fig.canvas.mpl_connect('button_press_event', self.on_click)
 		canvas = fig.add_subplot(121)
 		canvas.set_title(self.filename)
-		self.axes = P.imshow(self.inarr, vmax = colmax, vmin = colmin)
+		self.axes = P.imshow(self.inarr, origin='lower', vmax = colmax, vmin = colmin)
 		self.colbar = P.colorbar(self.axes, pad=0.01)
 		self.orglims = self.axes.get_clim()
 		canvas = fig.add_subplot(122)
 		canvas.set_title("angular average")
 		maxAngAvg = (self.inangavg).max()
+		for i,j in eDD.iceHInvAngQ.iteritems():
+			self.HIceQ[i] = eDD.get_pix_from_invAngsQ_and_detectorDist(runtag,j,self.detectorDistance, wavelengthInAngs=self.wavelength)
+
 		numQLabels = len(self.HIceQ.keys())+1
 		labelPosition = maxAngAvg/numQLabels
 		for i,j in self.HIceQ.iteritems():
@@ -172,14 +201,44 @@ class img_class (object):
 		P.plot(self.inangavg)
 		P.show()
 
+	def draw_img_for_tagging(self):
+		if(not options.inspectOnly):
+			print "Press 1-"+ str(numTypes)+ " to save png (overwrites old PNGs); Press 0 to undo (deletes png if wrongly saved)."
+		global colmax
+		global colmin
+		fig = P.figure(num=None, figsize=(13.5, 5), dpi=100, facecolor='w', edgecolor='k')
+		cid1 = fig.canvas.mpl_connect('key_press_event', self.on_keypress_for_tagging)
+		cid2 = fig.canvas.mpl_connect('button_press_event', self.on_click)
+		canvas = fig.add_subplot(121)
+		canvas.set_title(self.filename)
+		self.axes = P.imshow(self.inarr, origin='lower', vmax = colmax, vmin = colmin)
+		self.colbar = P.colorbar(self.axes, pad=0.01)
+		self.orglims = self.axes.get_clim()
+		canvas = fig.add_subplot(122)
+		canvas.set_title("angular average")
+		maxAngAvg = (self.inangavg).max()
+		for i,j in eDD.iceHInvAngQ.iteritems():
+			self.HIceQ[i] = eDD.get_pix_from_invAngsQ_and_detectorDist(runtag,j,self.detectorDistance, wavelengthInAngs=self.wavelength)
+
+		numQLabels = len(self.HIceQ.keys())+1
+		labelPosition = maxAngAvg/numQLabels
+		for i,j in self.HIceQ.iteritems():
+			P.axvline(j,0,colmax,color='r')
+			P.text(j,labelPosition,str(i), rotation="45")
+			labelPosition += maxAngAvg/numQLabels
+		
+		P.plot(self.inangavg)
+		P.show()
+
 	def draw_spectrum(self):
+		print "Press 'p' to save PNG."
 		global colmax
 		global colmin
 		localColMax=self.inarr.max()
 		localColMin=self.inarr.min()
 		aspectratio = (self.inarr.shape[1])/(float(self.inarr.shape[0]))
 		fig = P.figure(num=None, figsize=(8.5, 5), dpi=100, facecolor='w', edgecolor='k')
-		cid1 = fig.canvas.mpl_connect('key_press_event', self.on_keypress) 
+		cid1 = fig.canvas.mpl_connect('key_press_event', self.on_keypress_for_viewing) 
 		cid2 = fig.canvas.mpl_connect('button_press_event', self.on_click)
 		canvas = fig.add_subplot(111, xlabel="q", ylabel="normalized angular average")
 		canvas.set_title(self.filename)
@@ -193,12 +252,15 @@ print "Right-click on colorbar to set maximum scale."
 print "Left-click on colorbar to set minimum scale."
 print "Center-click on colorbar (or press 'r') to reset color scale."
 print "Interactive controls for zooming at the bottom of figure screen (zooming..etc)."
-print "Press 'p' to save PNG."
 print "Hit Ctl-\ or close all windows (Alt-F4) to terminate viewing program."
 
-currImg = img_class(sorted_arr2,None, runtag+"_spectrum")
+currImg = img_class(sorted_arr2, None, runtag+"_spectrum")
 currImg.draw_spectrum()
 cutoff = int(input("ice/water cutoff? "))
+
+########################################################
+# Loop to display all non-anomalous H5 files. 
+########################################################
 
 avgArr = N.zeros((numTypes+1,1760,1760))
 avgRadAvg = N.zeros((numTypes+1,1233))
@@ -206,7 +268,7 @@ typeOccurences = N.zeros(numTypes+1)
 waveLengths={}
 for i in range(numTypes):
 	waveLengths[i] = []
-#Make average of nonanomalies
+
 print "averaging water-only types.."
 for fname in round2FileNames[:cutoff]:
 	diffractionName = source_dir+runtag+"/"+re.sub("-angavg",'',fname)
@@ -215,7 +277,7 @@ for fname in round2FileNames[:cutoff]:
 	waveLengths[0].append(f['LCLS']['photon_wavelength_A'][0])
 	f.close()
 	avgArr[0] += d
-	angAvgName = inspectDirectory + '/' + fname
+	angAvgName = write_dir + '/' + fname
 	f = H.File(angAvgName, 'r')
 	davg = N.array(f['data']['data'][0])
 	f.close()
@@ -227,9 +289,7 @@ avgRadAvg[0] /= typeOccurences[0]
 
 storeFlag = 0
 currImg = img_class(avgArr[0], avgRadAvg[0], runtag+"_AvgPattStrongWater",meanWaveLengthInAngs=N.mean(waveLengths[0]))
-currImg.draw_img()
-
-anomalies = round2FileNames[cutoff:]
+currImg.draw_img_for_viewing()
 
 ########################################################
 # Loop to display all H5 files with ice anomalies. 
@@ -238,26 +298,33 @@ print "Right-click on colorbar to set maximum scale."
 print "Left-click on colorbar to set minimum scale."
 print "Center-click on colorbar (or press 'r') to reset color scale."
 print "Interactive controls for zooming at the bottom of figure screen (zooming..etc)."
-print "Press any single digit from 1-"+ str(numTypes)+ " to save current image to a unique-event-tagged PNG (overwrites old PNGs)."
 print "Hit Ctl-\ or close all windows (Alt-F4) to terminate viewing program."
+
+anomalies = round2FileNames[cutoff:]
+
 waveLengths={}
+rangeNumTypes = range(1,numTypes+1)
 for i in range(numTypes):
 	waveLengths[i] = []
 	
+#Tag anomalies
 for fname in anomalies:
 	storeFlag=0
 	diffractionName = source_dir+runtag+"/"+re.sub("-angavg",'',fname)
 	f = H.File(diffractionName, 'r')
 	d = N.array(f['/data/data'])
 	currWavelengthInAngs=f['LCLS']['photon_wavelength_A'][0]
+	currDetectorDist=(1.E-3)*f['LCLS']['detectorPosition'][0] 
 	f.close()
-	angAvgName = inspectDirectory + '/' + fname
+	angAvgName = write_dir + '/' + fname
 	f = H.File(angAvgName, 'r')
 	davg = N.array(f['data']['data'][0])
 	f.close()
-	currImg = img_class(d, davg, fname, meanWaveLengthInAngs=currWavelengthInAngs)
-	currImg.draw_img()
-	if(storeFlag == 1 or storeFlag == 2 or  storeFlag == 3):
+	print "wavelength:%lf, detectorPos:%lf"%(currWavelengthInAngs,currDetectorDist)
+	currImg = img_class(d, davg, fname, meanWaveLengthInAngs=currWavelengthInAngs, detectorDistance=currDetectorDist)
+	currImg.draw_img_for_tagging()
+	
+	if((storeFlag in rangeNumTypes) and not options.inspectOnly):
 		waveLengths[storeFlag].append(currWavelengthInAngs)
 		avgArr[storeFlag] += d
 		avgRadAvg[storeFlag] += davg
@@ -269,20 +336,22 @@ for fname in anomalies:
 		os.system("mv " + angAvgName + " " + write_anomaly_dir_types[storeFlag])
 		os.system("cp " + diffractionName + " " + write_anomaly_dir_types[storeFlag])
 
+#View the averages. Tagging disabled.
 for i in range(numTypes):
 	if (typeOccurences[i] > 0.):
 		storeFlag=i
 		avgArr[i] /= typeOccurences[i]
 		avgRadAvg[i] /= typeOccurences[i]
-		typeTag = 'type'+str(i)+'_for_'+runtag
-		currImg = img_class(avgArr[i], avgRadAvg[i], runtag+"_"+typeTag, meanWaveLengthInAngs=N.mean(waveLengths[i]))
-		currImg.draw_img()
+		typeTag = runtag+'_'+'type'+str(i)
+		currImg = img_class(avgArr[i], avgRadAvg[i], typeTag, meanWaveLengthInAngs=N.mean(waveLengths[i]))
+		currImg.draw_img_for_viewing()
 		(sx,sy) = avgArr[i].shape
-		f = H.File(write_anomaly_dir_types[i] + typeTag + ".h5", "w")
-		entry_1 = f.create_group("/data")
-		entry_1.create_dataset("diffraction", data=avgArr[i])
-		entry_1.create_dataset("angavg", data=avgRadAvg[i])	
-		f.close()
+		if (not options.inspectOnly):
+			f = H.File(write_anomaly_dir_types[i] + typeTag + ".h5", "w")
+			entry_1 = f.create_group("/data")
+			entry_1.create_dataset("diffraction", data=avgArr[i])
+			entry_1.create_dataset("angavg", data=avgRadAvg[i])	
+			f.close()
 
 """
 files_round2 = []
