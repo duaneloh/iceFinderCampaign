@@ -13,73 +13,79 @@ parser = OptionParser()
 parser.add_option("-r", "--run", action="store", type="string", dest="runNumber", help="run number you wish to view", metavar="rxxxx")
 parser.add_option("-i", "--inspectOnly", action="store_true", dest="inspectOnly", help="inspect output directory", default=False)
 parser.add_option("-o", "--outputDir", action="store", type="string", dest="outputDir", help="output directory will be appended by run number (default: output_rxxxx); separate types will be stored in output_rxxxx/anomaly/type[1-3]", default="output")
+parser.add_option("-W", "--waterAveraging", action="store_true", dest="averageWaterTypes", help="average pattern and angavg of water types", default=False)
 parser.add_option("-M", "--maxIntens", action="store", type="int", dest="maxIntens", help="doesn't plot intensities above this value", default=10000)
+parser.add_option("-S", "--sortTypes", action="store", type="int", dest="sortTypes", help="default:0. -1(descending total intens), 0(peakyness), 1(ascending total intens).", default=0)
 (options, args) = parser.parse_args()
 
+#Tagging directories with the correct names
 source_dir = "/reg/d/psdm/cxi/cxi25410/scratch/cleaned_hdf5/"
 ang_avg_dir = "/reg/d/psdm/cxi/cxi25410/scratch/cleaned_hdf5/"
 runtag = "r%s"%(options.runNumber)
 write_dir = options.outputDir + '_' + runtag + '/' 
 write_anomaly_dir = write_dir
+if(not os.path.exists(write_anomaly_dir)):
+	os.mkdir(write_anomaly_dir)
+numTypes = 5
+write_anomaly_dir_types = [write_dir]
+for i in range(numTypes):
+	write_anomaly_dir_types.append(write_anomaly_dir+"type"+str(i+1)+"/") 
+
+#Change into data directory to extract *angavg.h5 files
+arr = []
 originaldir=os.getcwd()
 os.chdir(write_dir)
 files = G.glob("LCLS*angavg.h5")
-
-arr = []
 print "reading ang_avgs.."
 for i in files:
 	f = H.File(i)
 	arr.append(N.array(f['data']['data'][0]))
 	f.close()
-
 os.chdir(originaldir)
-
-if(not os.path.exists(write_anomaly_dir)):
-        os.mkdir(write_anomaly_dir)
-
 masterArr = N.array(arr)
-arr = masterArr
+numData = len(masterArr)
+angAvgLen = len(masterArr[0])
 
-numData = len(arr)
-angAvgLen = len(arr[0])
-
-#Round 1: Sort by total intensities
-scoreKeeper = N.zeros(numData)
-scoreKeeper = [N.sum(N.abs(i)) for i in masterArr]
-ordering = N.argsort(scoreKeeper)
+#Normalize to water ring
+normed_arr = N.zeros((numData, angAvgLen))
 sorted_arr = N.zeros((numData, angAvgLen))
-files_round1 = []
-filterLen = 5
-medianFiltered_arr = N.zeros((numData, angAvgLen-filterLen))
-print "sorting by total intensities.."
+sortedFileNames = []
+unnormed_arr = masterArr.copy()
 for i in range(numData):
-	temp = masterArr[ ordering[i] ]
+	temp = masterArr[i]
 	max_temp = N.max(temp[530:560])
-	#max_temp = N.max(temp[50:1153])
-	min_temp = N.min(temp[50:1153]) #N.min(temp[700:800])
-	sorted_arr[i] = (temp - min_temp) / (max_temp - min_temp) 
-	for j in range(len(sorted_arr[i])-filterLen):
-		medianFiltered_arr[i][j] = N.median(sorted_arr[i][j:j+filterLen])
-	files_round1.append(files[ordering[i]])
+	min_temp = N.min(temp[50:1153])
+	normed_arr[i] = (temp - min_temp) / (max_temp - min_temp) 
 
-round1FileNames = N.array([files[i] for i in ordering])
-
-#Sort by maximum slope of median-filtered radial average
-print "sorting by maximum of median filtered ang_avgs.."
-sorted_arr2 = N.zeros((numData, angAvgLen))
-scoreKeeper = [N.max(N.abs(i[201:1001]-i[200:1000])) for i in medianFiltered_arr]
-ordering = N.argsort(scoreKeeper)
-sorted_arr2 = sorted_arr[ordering]
-round2FileNames = N.array([round1FileNames[i] for i in ordering])
+#Sorting routines
+if(options.sortTypes==-1):
+	print "sorting by total intensities in descending order.."
+	scoreKeeper = [N.sum(N.abs(i)) for i in unnormed_arr]
+	ordering = (N.argsort(scoreKeeper))[-1::-1]
+	sorted_arr = normed_arr[ordering]
+	sortedFileNames = N.array(files)[ordering]
+elif (options.sortTypes==1):
+	print "sorting by total intensities in ascending order.."
+	scoreKeeper = [N.sum(N.abs(i)) for i in unnormed_arr]
+	ordering = N.argsort(scoreKeeper)
+	sorted_arr = normed_arr[ordering]
+	sortedFileNames = N.array(files)[ordering]
+elif (options.sortTypes==0):
+	print "sorting by maximum of median filtered ang_avgs.."
+	filterLen = 5
+	medianFiltered_arr = N.zeros((numData, angAvgLen-filterLen))
+	for i in range(numData):
+		for j in range(len(normed_arr[i])-filterLen):
+			medianFiltered_arr[i][j] = N.median(normed_arr[i][j:j+filterLen])
+	scoreKeeper = [N.max(N.abs(i[201:1001]-i[200:1000])) for i in medianFiltered_arr]
+	ordering = N.argsort(scoreKeeper)
+	sorted_arr = normed_arr[ordering]
+	sortedFileNames = N.array(files)[ordering]
 
 #Global parameters
 colmax = options.maxIntens
 colmin = 0
 storeFlag = 0
-numTypes = 5
-write_anomaly_dir_types = [write_dir]
-for i in range(numTypes):
-	write_anomaly_dir_types.append(write_anomaly_dir+"type"+str(i+1)+"/") 
 ########################################################
 # Imaging class copied from Ingrid Ofte's pyana_misc code
 ########################################################
@@ -254,7 +260,7 @@ print "Center-click on colorbar (or press 'r') to reset color scale."
 print "Interactive controls for zooming at the bottom of figure screen (zooming..etc)."
 print "Hit Ctl-\ or close all windows (Alt-F4) to terminate viewing program."
 
-currImg = img_class(sorted_arr2, None, runtag+"_spectrum")
+currImg = img_class(sorted_arr, None, runtag+"_spectrum")
 currImg.draw_spectrum()
 cutoff = int(input("ice/water cutoff? "))
 
@@ -269,27 +275,28 @@ waveLengths={}
 for i in range(numTypes):
 	waveLengths[i] = []
 
-print "averaging water-only types.."
-for fname in round2FileNames[:cutoff]:
-	diffractionName = source_dir+runtag+"/"+re.sub("-angavg",'',fname)
-	f = H.File(diffractionName, 'r')
-	d = N.array(f['/data/data'])
-	waveLengths[0].append(f['LCLS']['photon_wavelength_A'][0])
-	f.close()
-	avgArr[0] += d
-	angAvgName = write_dir + '/' + fname
-	f = H.File(angAvgName, 'r')
-	davg = N.array(f['data']['data'][0])
-	f.close()
-	avgRadAvg[0] += davg
-	typeOccurences[0] += 1.
+if(options.averageWaterTypes):
+	print "averaging water-only types.."
+	for fname in sortedFileNames[:cutoff]:
+		diffractionName = source_dir+runtag+"/"+re.sub("-angavg",'',fname)
+		f = H.File(diffractionName, 'r')
+		d = N.array(f['/data/data'])
+		waveLengths[0].append(f['LCLS']['photon_wavelength_A'][0])
+		f.close()
+		avgArr[0] += d
+		angAvgName = write_dir + '/' + fname
+		f = H.File(angAvgName, 'r')
+		davg = N.array(f['data']['data'][0])
+		f.close()
+		avgRadAvg[0] += davg
+		typeOccurences[0] += 1.
 
-avgArr[0] /= typeOccurences[0]
-avgRadAvg[0] /= typeOccurences[0]
+	avgArr[0] /= typeOccurences[0]
+	avgRadAvg[0] /= typeOccurences[0]
 
-storeFlag = 0
-currImg = img_class(avgArr[0], avgRadAvg[0], runtag+"_AvgPattStrongWater",meanWaveLengthInAngs=N.mean(waveLengths[0]))
-currImg.draw_img_for_viewing()
+	storeFlag = 0
+	currImg = img_class(avgArr[0], avgRadAvg[0], runtag+"_type0",meanWaveLengthInAngs=N.mean(waveLengths[0]))
+	currImg.draw_img_for_viewing()
 
 ########################################################
 # Loop to display all H5 files with ice anomalies. 
@@ -300,7 +307,7 @@ print "Center-click on colorbar (or press 'r') to reset color scale."
 print "Interactive controls for zooming at the bottom of figure screen (zooming..etc)."
 print "Hit Ctl-\ or close all windows (Alt-F4) to terminate viewing program."
 
-anomalies = round2FileNames[cutoff:]
+anomalies = sortedFileNames[cutoff:]
 
 waveLengths={}
 rangeNumTypes = range(1,numTypes+1)
@@ -352,23 +359,3 @@ for i in range(numTypes):
 			entry_1.create_dataset("diffraction", data=avgArr[i])
 			entry_1.create_dataset("angavg", data=avgRadAvg[i])	
 			f.close()
-
-"""
-files_round2 = []
-sorted_arr2 = N.zeros((numData-cutoff, angAvgLen))
-scoreKeeper = [N.max(i[200:800]) for i in sorted_arr]
-ordering = N.argsort(scoreKeeper)
-for i in range(numData-cutoff):
-	sorted_arr2[i] = sorted_arr[ ordering[i] ]
-	files_round2.append(files_round1[ordering[i]])
-
-
-psexportCmd = 'duaneloh@psexport.slac.stanford.edu:'
-datadir='/reg/d/psdm/cxi/cxi25410/scratch/cleaned_hdf5/'
-for i in files_round2:
-	runnumSearch = re.search("(r[0-9]+)", i)
-	runnum = runnumSearch.groups(1)[0]
-	fileTag = re.sub("-angavg",r'',i)
-	cmd = "scp " + psexportCmd + datadir + runnum + "/" + fileTag + " " + runnum + "/" + "h5files"
-	os.system(cmd)
-"""
