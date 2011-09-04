@@ -38,6 +38,7 @@ files[0] = G.glob("LCLS*angavg.h5")
 curr_dir = os.getcwd()
 write_anomaly_dir_types[0] = curr_dir+'/'
 os.chdir(originaldir)
+viewTypes[0] = int(input("view "+write_dir+" (1 for yes, 0 for no)? "))
 
 #write_anomaly_dir_types_jumbled = [write_dir]
 for cDir in foundTypes:
