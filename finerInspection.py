@@ -14,7 +14,7 @@ parser.add_option("-r", "--run", action="store", type="string", dest="runNumber"
 parser.add_option("-i", "--inspectOnly", action="store_true", dest="inspectOnly", help="inspect output directory", default=False)
 parser.add_option("-o", "--outputDir", action="store", type="string", dest="outputDir", help="output directory will be appended by run number (default: output_rxxxx); separate types will be stored in output_rxxxx/anomaly/type[1-3]", default="output")
 parser.add_option("-W", "--waterAveraging", action="store_true", dest="averageWaterTypes", help="average pattern and angavg of water types", default=False)
-parser.add_option("-M", "--maxIntens", action="store", type="int", dest="maxIntens", help="doesn't plot intensities above this value", default=10000)
+parser.add_option("-M", "--maxIntens", action="store", type="int", dest="maxIntens", help="doesn't plot intensities above this value (default:2000)", default=2000)
 parser.add_option("-S", "--sortTypes", action="store", type="int", dest="sortTypes", help="default:0. -1(descending total intens), 0(peakyness), 1(ascending total intens).", default=0)
 (options, args) = parser.parse_args()
 
@@ -242,15 +242,18 @@ class img_class (object):
 		global colmin
 		localColMax=self.inarr.max()
 		localColMin=self.inarr.min()
-		aspectratio = (self.inarr.shape[1])/(float(self.inarr.shape[0]))
-		fig = P.figure(num=None, figsize=(8.5, 5), dpi=100, facecolor='w', edgecolor='k')
+		aspectratio = 1.5*(self.inarr.shape[1])/(float(self.inarr.shape[0]))
+		fig = P.figure(num=None, figsize=(13, 10), dpi=100, facecolor='w', edgecolor='k')
 		cid1 = fig.canvas.mpl_connect('key_press_event', self.on_keypress_for_viewing) 
 		cid2 = fig.canvas.mpl_connect('button_press_event', self.on_click)
-		canvas = fig.add_subplot(111, xlabel="q", ylabel="normalized angular average")
+		canvas = fig.add_axes([0.05,0.05,0.6,0.9], xlabel="q", ylabel="normalized angular average (will prompt to examine data larger than cutoff)")
 		canvas.set_title(self.filename)
-		self.axes = P.imshow(self.inarr, aspect=aspectratio, vmax = localColMax, vmin = localColMin)
+		self.axes = P.imshow(self.inarr, origin='lower', aspect=aspectratio, vmax = localColMax, vmin = localColMin)
 		self.colbar = P.colorbar(self.axes, pad=0.01)
 		self.orglims = self.axes.get_clim() 
+		canvas2 = fig.add_axes([0.7,0.05,0.25,0.9], xlabel="log(sorting score)", ylabel="data")
+		canvas2.set_ylim([0,numData])
+		canvas2.plot(N.log(N.array(scoreKeeper)[ordering]),range(numData))
 		P.show()  	
 
 
