@@ -2,6 +2,7 @@
 
 import numpy as N
 import h5py as H
+import glob as G
 import matplotlib
 import matplotlib.pyplot as P
 import sys, os, re, shutil, subprocess
@@ -26,38 +27,65 @@ parser.add_option("-v", "--verbose", action="store_true", dest="verbose", help="
 ########################################################
 source_dir = "/reg/d/psdm/cxi/cxi25410/scratch/cleaned_hdf5/"
 ang_avg_dir = "/reg/d/psdm/cxi/cxi25410/scratch/cleaned_hdf5/"
-h5files= []
-integratedIntens = []
+
 runtag = "r%s"%(options.runNumber)
 write_dir = options.outputDir + '_' + runtag + '/'
-orderedH5Files = []
 canonicalOrderedHitsFN = write_dir + runtag + "_orderedFiles.txt"
 canonicalOrderedIntensInHitsFN = write_dir + runtag + "_orderedIntens.txt"
+
+h5files= []
+integratedIntens = []
+orderedH5Files = []
+foundFiles = []
+#Check if write_dir already exists, and which angavg files have already
+#been copied over.
 if not os.path.exists(write_dir):
 	os.mkdir(write_dir)
+else:
+	write_anomaly_dir = write_dir 
+	originaldir=os.getcwd()
+	foundTypes=[write_dir]
+	anomalousTypes=G.glob(write_anomaly_dir+"type[1-9]")
+	if (len(anomalousTypes)>0):
+		foundTypes+=anomalousTypes
+	numTypes=len(foundTypes)
+	for cDir in foundTypes:
+		os.chdir(cDir)
+		foundFiles+=G.glob("LCLS*angavg.h5")
+		os.chdir(originaldir)
+	print "Found %d types (including type0) with %d files" % (numTypes, len(foundFiles))	
 
-print "detector at distance: %lf" % eDD.get_detector_dist_in_meters(runtag)
+if(options.verbose):
+	print "detector at distance: %lf" % eDD.get_detector_dist_in_meters(runtag)
 
+#Always check the angavg files in searchDir.
+searchDir = ang_avg_dir + runtag
+print "Now examining H5 files in %s/ ..."%(searchDir)   
+searchstring="[a-zA-Z0-9\_]+"+runtag+"[a-z0-9\_]+-angavg.h5"
+h5pattern = re.compile(searchstring)
+h5files = [x for x in os.listdir(searchDir) if h5pattern.findall(x)]
+numFiles = len(h5files)
+
+#Check if file sorting has already been done.
 if(os.path.exists(canonicalOrderedHitsFN) and os.path.exists(canonicalOrderedIntensInHitsFN)):
-	print "Found sorted filenames and intens lists"
+	print "Found sorted filenames and intens lists."
 	f = open(canonicalOrderedHitsFN, 'r')
 	orderedH5Files = N.array(f.read().split())
 	f.close()
 	f = open(canonicalOrderedIntensInHitsFN, 'r')
 	integratedIntens = N.array([float(i) for i in f.read().split()])
 	f.close()
+
+#Check if presorted files are identical to those in searchDir:
+#Re-sort only if different.	
+if(len(set(orderedH5Files) - set(h5files)) == 0):
+	print "Number of pre-sorted filenames matches those in %s" % (searchDir)
 	P.plot(integratedIntens)
 	P.title("Note the strong/weak hits cutoff")
 	P.xlabel("sorted frame number")
 	P.ylabel("integrated radial intensities of each run")
 	P.show()
 else:
-	searchDir = ang_avg_dir + runtag
-	print "Now examining H5 files in %s/ ..."%(searchDir)   
-	searchstring="[a-zA-Z0-9\_]+"+runtag+"[a-z0-9\_]+-angavg.h5"
-	h5pattern = re.compile(searchstring)
-	h5files = [x for x in os.listdir(searchDir) if h5pattern.findall(x)]
-	numFiles = len(h5files)
 	print "Found %d angavg files, sorting them now.."%(numFiles)
 	integratedIntens = N.zeros(numFiles)
 	for i in range(numFiles):
@@ -79,7 +107,7 @@ else:
 colmax=1000
 colmin=0
 ########################################################
-# Imaging class copied from Ingrid Ofte's pyana_misc code
+# Imaging class modified from Ingrid Ofte's pyana_misc code
 ########################################################
 class img_class (object):
 	def __init__(self, inarr, inangavg , filename, meanWaveLengthInAngs=eDD.nominalWavelengthInAngs):
@@ -106,7 +134,7 @@ class img_class (object):
 			colmax = self.inarr.max()
 			P.clim(colmin, colmax)
 			P.draw()
-
+	
 	def on_click(self, event):
 		global colmax
 		global colmin
@@ -127,7 +155,7 @@ class img_class (object):
 					colmax = value
 			P.clim(colmin, colmax)
 			P.draw()
-
+	
 	def draw_img(self):
 		global colmax
 		global colmin
@@ -166,14 +194,33 @@ strongFiles = orderedH5Files[cutoff:]
 recordTag = write_dir + runtag + "_strongAvgFiles.txt"  
 N.array(strongFiles).tofile(recordTag, sep='\n')
 
+#Copies only new files that were 
 if(options.store_files):
-	print "copying files of strong hits.."
-	for fname in strongFiles: 
-		diffractionName = source_dir+runtag+"/"+re.sub("-angavg",'',fname)
-		angAvgName = ang_avg_dir + runtag + '/' + fname
-		if(os.path.exists(diffractionName)):
-			#shutil.copyfile(diffractionName, write_dir+re.sub("-angavg",'',fname))
-			shutil.copyfile(angAvgName, write_dir+fname)
+	sStrong = set(strongFiles)
+	sWeak = set(weakFiles)
+	sFound = set(foundFiles)
+	diffFiles = sStrong - sFound # != sFound-sStrong
+	
+	#Check we found angavg files in outputDir that weren't in searchDir
+	if(len(sFound & set(h5files)) != len(sFound)):
+		print "There are angavg files in the %s that are not in %s. Confused. Aborting." % (write_dir, searchDir)
+		sys.exit(1)
+	#Check if we found more(or fewer) angavg files than already in outputDir
+	elif(len(diffFiles)==0):
+		diffFiles = sFound - sStrong
+		if(len(diffFiles) > 0):
+			recordTag = write_dir + runtag + "_excessFiles.txt" 
+			N.array(list(diffFiles)).tofile(recordTag, sep='\n')
+			print "Excess angavg files in %s that did not make the cutoff stored in %s" % (write_dir, recordTag)
+		else:
+			print "All strong hits already in %s. Nothing copied." % (write_dir)
+	else:
+		print "%d strong hits copied earlier. Will copy only %d of the remainder" % (len(foundFiles), len(diffFiles))
+		for fname in diffFiles: 
+			diffractionName = source_dir+runtag+"/"+re.sub("-angavg",'',fname)
+			angAvgName = ang_avg_dir + runtag + '/' + fname
+			if(os.path.exists(diffractionName)):
+				shutil.copyfile(angAvgName, write_dir+fname)
 
 ########################################################
 # Weakly scattering files
@@ -202,7 +249,7 @@ if (options.weakHitsTreatment == 1):
 			davg = N.array(f['data']['data'][0])
 			avg += davg
 			f.close()
-
+	
 	arr /= len(weakFiles)
 	[colmax, colmin] = [arr.max(), 0.]
 	currImg = img_class(arr, avg/len(weakFiles), runtag+"_AvgPattWeakHits", meanWaveLengthInAngs=N.mean(waveLengths))
