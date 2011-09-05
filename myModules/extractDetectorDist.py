@@ -19,7 +19,7 @@ expDescriptors = {}
 runDescriptor="RUN"
 detectorDistDescriptor="SAMPLE-DETECTOR Z (mm)"
 
-iceHInvAngQ={'100':1.611, '002':1.717, '101':1.848, '102':2.353, '110':2.793, '103':3.095, '200':3.222, '112':3.272, '201':3.324}
+iceHInvAngQ={'100':1.611, '002':1.717, '101':1.848, '102':2.353, '110':2.793, '103':3.035, '200':3.222, '112':3.272, '201':3.324}
 
 for i in values:
 	temp_dict = {}
